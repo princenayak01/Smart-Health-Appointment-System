@@ -1,0 +1,6 @@
+import { db } from "hatchable";
+export const access = "user";
+export default async function (req,res) {
+ const {rows}=await db.query("SELECT a.id,a.patient_name,a.appointment_date,a.appointment_time,a.reason,a.status,d.name AS doctor_name FROM appointments a JOIN doctors d ON d.id=a.doctor_id ORDER BY a.appointment_date DESC,a.id DESC LIMIT 100");
+ res.send("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Doctor Panel</title><link rel='stylesheet' href='/theme.css'></head><body><main class='container section'><a href='/'>← CareFlow</a><div class='panel' style='margin-top:18px'><div class='eyebrow'>Doctor Workspace</div><h1>Doctor Panel</h1><p>Review the appointment queue.</p><div class='table-wrap' style='margin-top:24px'><table class='table'><thead><tr><th>Patient</th><th>Doctor</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>"+rows.map(a=>"<tr><td>"+a.patient_name+"</td><td>"+a.doctor_name+"</td><td>"+a.appointment_date+"</td><td>"+a.appointment_time+"</td><td><span class='badge'>"+a.status+"</span></td></tr>").join("")+"</tbody></table></div><div class='actions'><a class='btn primary' href='/#appointments'>Open appointment controls</a></div></div></main></body></html>");
+}

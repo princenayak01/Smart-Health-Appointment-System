@@ -1,0 +1,4 @@
+name = "Smart Health Appointment System"
+[auth]
+enabled = true
+providers = ["email"]

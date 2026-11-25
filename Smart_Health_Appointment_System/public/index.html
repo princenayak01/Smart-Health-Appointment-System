@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareFlow — Smart Health Appointment System</title>
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/client-auth.js"></script>
+</head>
+<body>
+  <!-- Top Navigation -->
+  <header class="nav">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <a href="/" class="brand">
+        <div class="mark">+</div>
+        <span>CareFlow</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#doctors">Doctors</a>
+        <a href="#appointments">Appointments</a>
+        <a href="/my-appointments.html">Patient Portal</a>
+        <a href="/doctor.html">Doctor Portal</a>
+        <a href="/admin.html">Admin Portal</a>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="userNavSection" style="display:flex;align-items:center;gap:8px">
+          <!-- Populated by JS -->
+        </div>
+        <button class="btn primary" onclick="openBookingModal()">+ Book Appointment</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Demo Role Bar -->
+  <div style="background:#eaf5f1;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="color:var(--brand-dark);font-weight:600">
+        ⚡ <strong>Quick Portals:</strong>
+        <a href="/my-appointments.html" style="color:var(--brand);margin-left:8px;text-decoration:none;font-weight:700">Patient View</a> •
+        <a href="/doctor.html" style="color:var(--brand);margin-left:8px;text-decoration:none;font-weight:700">Doctor View</a> •
+        <a href="/admin.html" style="color:var(--brand);margin-left:8px;text-decoration:none;font-weight:700">Admin View</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="color:var(--muted);font-size:12px">Switch Role:</span>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('patient')">👤 Patient (Rahul)</button>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('doctor')">🩺 Doctor (Dr. Sharma)</button>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('admin')">🛡️ Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="container hero">
+      <div>
+        <div class="eyebrow">Smart Healthcare Portal</div>
+        <h1>Healthcare appointments, made simple.</h1>
+        <p>Book consultations with certified medical specialists in seconds. Real-time scheduling, multi-doctor queue management, and digital health records.</p>
+        
+        <div class="actions">
+          <button class="btn primary" onclick="openBookingModal()">Book Consultation &rarr;</button>
+          <a class="btn secondary" href="/doctor.html">Doctor Workspace</a>
+          <a class="btn outline" href="/admin.html">Admin Dashboard</a>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <div class="eyebrow" style="color:#a4f3db">Live Clinic Activity</div>
+        <div class="big" id="heroConfirmedStat">0</div>
+        <div style="color:#b9d1ca;font-weight:600;margin-top:4px">confirmed & completed visits</div>
+        
+        <div style="margin-top:32px;display:flex;gap:16px;flex-wrap:wrap">
+          <div style="background:rgba(255,255,255,0.1);padding:8px 14px;border-radius:12px;font-size:13px">
+            🩺 6+ Certified Specialists
+          </div>
+          <div style="background:rgba(255,255,255,0.1);padding:8px 14px;border-radius:12px;font-size:13px">
+            ⚡ Instant booking confirmation
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="container stats">
+      <div class="stat">
+        <b id="statDoctors">6</b>
+        <span>Active Doctors</span>
+      </div>
+      <div class="stat">
+        <b id="statAppointments">0</b>
+        <span>Total Requests</span>
+      </div>
+      <div class="stat">
+        <b id="statPending" style="color:var(--warning)">0</b>
+        <span>Pending Review</span>
+      </div>
+      <div class="stat">
+        <b id="statApproved" style="color:var(--success)">0</b>
+        <span>Approved Visits</span>
+      </div>
+    </section>
+
+    <!-- Alert Banners -->
+    <div class="container">
+      <div id="noticeMsg" class="notice" style="display:none"></div>
+    </div>
+
+    <!-- Doctors Directory -->
+    <section id="doctors" class="container section">
+      <div class="section-head">
+        <div>
+          <h2>Our Medical Specialists</h2>
+          <p>Choose an expert and schedule your in-person clinical visit.</p>
+        </div>
+        <button class="btn secondary" onclick="openBookingModal()">Quick Schedule</button>
+      </div>
+
+      <div class="doctor-grid" id="doctorsGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">Loading doctors list...</div>
+      </div>
+    </section>
+
+    <!-- Appointments Queue Table -->
+    <section id="appointments" class="container section">
+      <div class="section-head">
+        <div>
+          <h2>Clinic Appointment Queue</h2>
+          <p>Real-time booking schedule and status management.</p>
+        </div>
+        <div style="display:flex;gap:10px">
+          <a href="/my-appointments.html" class="btn secondary">My Appointments</a>
+          <a href="/doctor.html" class="btn secondary">Doctor Queue</a>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="panel" style="margin-bottom:16px;padding:16px">
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Search by patient name, doctor, or specialty..." oninput="filterAppointments()">
+          <select id="statusFilter" onchange="filterAppointments()">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <button class="btn outline" onclick="resetFilters()">Reset</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="panel table-wrap" style="padding:0">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Doctor & Specialty</th>
+              <th>Date</th>
+              <th>Time Slot</th>
+              <th>Reason for Visit</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="apptsTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">Loading appointments queue...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Booking Modal -->
+  <div id="bookingModal" class="modal" style="display:none">
+    <div class="form">
+      <div class="form-head">
+        <div>
+          <h2>Schedule Consultation</h2>
+          <p style="color:var(--muted);margin:4px 0 0;font-size:14px">Book an in-person appointment with our clinical staff.</p>
+        </div>
+        <button type="button" class="close" onclick="closeBookingModal()">&times;</button>
+      </div>
+
+      <div id="modalNotice" class="notice error" style="display:none;margin-bottom:14px"></div>
+
+      <form id="bookingForm" onsubmit="handleBookSubmit(event)">
+        <div class="grid">
+          <div class="field">
+            <label>Patient Full Name *</label>
+            <input required id="bookName" placeholder="e.g. Rahul Mehta">
+          </div>
+
+          <div class="field">
+            <label>Email Address *</label>
+            <input required type="email" id="bookEmail" placeholder="patient@example.com">
+          </div>
+
+          <div class="field">
+            <label>Contact Phone</label>
+            <input type="tel" id="bookPhone" placeholder="+91 98765 43210">
+          </div>
+
+          <div class="field">
+            <label>Consulting Doctor *</label>
+            <select required id="bookDoctor">
+              <option value="">Select a specialist</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Appointment Date *</label>
+            <input required type="date" id="bookDate">
+          </div>
+
+          <div class="field">
+            <label>Preferred Time Slot *</label>
+            <select required id="bookTime">
+              <option value="">Select time</option>
+              <option value="09:30 AM">09:30 AM (Morning)</option>
+              <option value="10:30 AM">10:30 AM (Morning)</option>
+              <option value="11:30 AM">11:30 AM (Morning)</option>
+              <option value="01:00 PM">01:00 PM (Afternoon)</option>
+              <option value="02:30 PM">02:30 PM (Afternoon)</option>
+              <option value="04:00 PM">04:00 PM (Evening)</option>
+              <option value="05:30 PM">05:30 PM (Evening)</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label>Reason for Consultation *</label>
+            <textarea required id="bookReason" placeholder="Describe symptoms or purpose of the visit..."></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;display:flex;gap:12px">
+          <button type="submit" id="bookSubmitBtn" class="btn primary" style="flex:1">Confirm & Submit Request</button>
+          <button type="button" class="btn outline" onclick="closeBookingModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer style="margin-top:60px;border-top:1px solid var(--line);padding:30px 0;background:white">
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="mark" style="width:30px;height:30px;font-size:18px">+</div>
+        <span style="font-weight:700">CareFlow Health System</span>
+      </div>
+      <div style="color:var(--muted);font-size:14px">
+        Fully Functional Smart Health & Appointment Management
+      </div>
+      <div style="display:flex;gap:16px;font-size:14px">
+        <a href="/login.html" style="color:var(--brand2);text-decoration:none">Login Portal</a>
+        <a href="/doctor.html" style="color:var(--brand2);text-decoration:none">Doctor Portal</a>
+        <a href="/admin.html" style="color:var(--brand2);text-decoration:none">Admin Portal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    let doctorsList = [];
+    let appointmentsList = [];
+    let currentUser = null;
+
+    function showNotice(text, isError = false) {
+      const el = document.getElementById('noticeMsg');
+      el.style.display = 'block';
+      el.className = 'notice ' + (isError ? 'error' : 'success');
+      el.innerHTML = (isError ? '⚠ ' : '✓ ') + text;
+      window.scrollTo({ top: 380, behavior: 'smooth' });
+      setTimeout(() => { el.style.display = 'none'; }, 6000);
+    }
+
+    async function initPage() {
+      // Set min date to today
+      const today = new Date().toISOString().split('T')[0];
+      const bookDateInput = document.getElementById('bookDate');
+      if (bookDateInput) {
+        bookDateInput.min = today;
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        bookDateInput.value = tomorrow;
+      }
+
+      await checkUserNav();
+      await Promise.all([
+        loadDoctors(),
+        loadAppointments(),
+        loadStats()
+      ]);
+    }
+
+    async function checkUserNav() {
+      currentUser = await getCurrentUser();
+      const navSec = document.getElementById('userNavSection');
+
+      if (currentUser) {
+        navSec.innerHTML = `
+          <div class="user-pill">
+            <span>${currentUser.name}</span>
+            <span class="role-tag ${currentUser.role}">${currentUser.role}</span>
+          </div>
+          <button class="btn outline" onclick="doLogout()" style="padding:7px 12px;font-size:13px">Logout</button>
+        `;
+        // Pre-fill booking form if empty
+        const bName = document.getElementById('bookName');
+        const bEmail = document.getElementById('bookEmail');
+        const bPhone = document.getElementById('bookPhone');
+        if (bName && !bName.value) bName.value = currentUser.name || '';
+        if (bEmail && !bEmail.value) bEmail.value = currentUser.email || '';
+        if (bPhone && !bPhone.value) bPhone.value = currentUser.phone || '';
+      } else {
+        navSec.innerHTML = `
+          <a href="/login.html" class="btn outline" style="padding:8px 14px">Sign in / Register</a>
+        `;
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const res = await apiFetch('/api/dashboard');
+        const data = await res.json();
+        document.getElementById('statDoctors').textContent = data.doctors || 0;
+        document.getElementById('statAppointments').textContent = data.appointments || 0;
+        document.getElementById('statPending').textContent = data.pending || 0;
+        document.getElementById('statApproved').textContent = data.approved || 0;
+        document.getElementById('heroConfirmedStat').textContent = (data.approved || 0) + (data.completed || 0);
+      } catch (e) {}
+    }
+
+    async function loadDoctors() {
+      try {
+        const res = await apiFetch('/api/doctors');
+        const data = await res.json();
+        doctorsList = data.doctors || [];
+
+        // Populate Doctor select in modal
+        const select = document.getElementById('bookDoctor');
+        select.innerHTML = '<option value="">Select a specialist</option>' +
+          doctorsList.map(d => `<option value="${d.id}">${d.name} (${d.specialty})</option>`).join('');
+
+        // Render Doctor grid cards
+        const grid = document.getElementById('doctorsGrid');
+        if (!doctorsList.length) {
+          grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px">No doctors available.</div>';
+          return;
+        }
+
+        grid.innerHTML = doctorsList.map(d => {
+          const initials = (d.name || 'Doc').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('');
+          return `
+            <article class="panel doctor">
+              <div class="doctor-head">
+                <div class="avatar">${initials}</div>
+                <div>
+                  <h3>${d.name}</h3>
+                  <div class="spec">${d.specialty}</div>
+                </div>
+              </div>
+              <div class="meta">
+                <div><strong>Experience:</strong> ${d.experience_years} Years</div>
+                <div style="margin-top:4px"><strong>Hours:</strong> ${d.availability}</div>
+              </div>
+              <button class="btn secondary" style="width:100%;margin-top:16px" onclick="openBookingModal(${d.id})">
+                Book with Doctor &rarr;
+              </button>
+            </article>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('doctorsGrid').innerHTML = '<div style="grid-column:1/-1;color:var(--danger);text-align:center">Failed to load doctors list.</div>';
+      }
+    }
+
+    async function loadAppointments() {
+      try {
+        const res = await apiFetch('/api/appointments');
+        const data = await res.json();
+        appointmentsList = data.appointments || [];
+        filterAppointments();
+      } catch (e) {
+        document.getElementById('apptsTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger)">Error loading appointment queue.</td></tr>';
+      }
+    }
+
+    function filterAppointments() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+
+      const filtered = appointmentsList.filter(a => {
+        const matchesQ = !q || (a.patient_name.toLowerCase().includes(q) || a.doctor_name.toLowerCase().includes(q) || a.specialty.toLowerCase().includes(q));
+        const matchesStatus = !status || a.status === status;
+        return matchesQ && matchesStatus;
+      });
+
+      const tbody = document.getElementById('apptsTableBody');
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--muted)">No appointments match current filters.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => `
+        <tr>
+          <td>
+            <strong>${a.patient_name}</strong>
+            <div style="font-size:12px;color:var(--muted)">${a.patient_email}</div>
+          </td>
+          <td>
+            <div>${a.doctor_name}</div>
+            <div style="font-size:12px;color:var(--brand)">${a.specialty}</div>
+          </td>
+          <td>${a.appointment_date}</td>
+          <td>${a.appointment_time}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.reason}">${a.reason}</td>
+          <td>
+            <span class="badge ${a.status.toLowerCase()}">${a.status}</span>
+          </td>
+          <td>
+            <div class="row-actions">
+              ${a.status === 'Pending' ? `<button class="mini approve" onclick="changeStatus(${a.id}, 'Approved')">Approve</button>` : ''}
+              ${a.status === 'Approved' ? `<button class="mini complete" onclick="changeStatus(${a.id}, 'Completed')">Complete</button>` : ''}
+              ${a.status !== 'Cancelled' && a.status !== 'Completed' ? `<button class="mini cancel" onclick="changeStatus(${a.id}, 'Cancelled')">Cancel</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = '';
+      filterAppointments();
+    }
+
+    async function changeStatus(id, newStatus) {
+      try {
+        const res = await apiFetch('/api/appointments', {
+          method: 'PATCH',
+          body: JSON.stringify({ id, status: newStatus })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showNotice(`Appointment #${id} updated to ${newStatus}.`);
+          loadAppointments();
+          loadStats();
+        } else {
+          showNotice(data.error || 'Failed to update status.', true);
+        }
+      } catch (e) {
+        showNotice('Network error.', true);
+      }
+    }
+
+    function openBookingModal(docId = null) {
+      const modal = document.getElementById('bookingModal');
+      document.getElementById('modalNotice').style.display = 'none';
+
+      if (docId) {
+        document.getElementById('bookDoctor').value = docId;
+      }
+
+      if (currentUser) {
+        const bName = document.getElementById('bookName');
+        const bEmail = document.getElementById('bookEmail');
+        const bPhone = document.getElementById('bookPhone');
+        if (bName && !bName.value) bName.value = currentUser.name || '';
+        if (bEmail && !bEmail.value) bEmail.value = currentUser.email || '';
+        if (bPhone && !bPhone.value) bPhone.value = currentUser.phone || '';
+      }
+
+      modal.style.display = 'grid';
+    }
+
+    function closeBookingModal() {
+      document.getElementById('bookingModal').style.display = 'none';
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('bookingModal').addEventListener('click', function(e) {
+      if (e.target === this) closeBookingModal();
+    });
+
+    async function handleBookSubmit(e) {
+      e.preventDefault();
+      const patient_name = document.getElementById('bookName').value.trim();
+      const patient_email = document.getElementById('bookEmail').value.trim();
+      const patient_phone = document.getElementById('bookPhone').value.trim();
+      const doctor_id = document.getElementById('bookDoctor').value;
+      const appointment_date = document.getElementById('bookDate').value;
+      const appointment_time = document.getElementById('bookTime').value;
+      const reason = document.getElementById('bookReason').value.trim();
+
+      const btn = document.getElementById('bookSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting Request...';
+
+      try {
+        const res = await apiFetch('/api/appointments', {
+          method: 'POST',
+          body: JSON.stringify({
+            patient_name,
+            patient_email,
+            patient_phone,
+            doctor_id,
+            appointment_date,
+            appointment_time,
+            reason
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          closeBookingModal();
+          showNotice(`Appointment #${data.appointment.id} successfully requested! Status: Pending review.`);
+          document.getElementById('bookingForm').reset();
+          loadAppointments();
+          loadStats();
+        } else {
+          const errEl = document.getElementById('modalNotice');
+          errEl.style.display = 'block';
+          errEl.textContent = data.error || 'Failed to book appointment.';
+        }
+      } catch (err) {
+        const errEl = document.getElementById('modalNotice');
+        errEl.style.display = 'block';
+        errEl.textContent = 'Server connection error. Please try again.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm & Submit Request';
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

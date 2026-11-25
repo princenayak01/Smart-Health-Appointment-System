@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Appointments — CareFlow Patient Portal</title>
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/client-auth.js"></script>
+  <style>
+    .patient-header {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .profile-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      background: var(--brand);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .filter-tab {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: white;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-tab.active {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+    }
+    .prescription-box {
+      margin-top: 8px;
+      background: #f0fdf4;
+      border-left: 3px solid var(--brand);
+      padding: 8px 12px;
+      font-size: 13px;
+      border-radius: 4px;
+      color: #14532d;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="nav">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <a href="/" class="brand">
+        <div class="mark">+</div>
+        <span>CareFlow</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/#doctors">Doctors</a>
+        <a href="/my-appointments.html" style="color:var(--brand)">Patient Portal</a>
+        <a href="/doctor.html">Doctor Portal</a>
+        <a href="/admin.html">Admin Portal</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="userNameBadge" class="user-pill">
+          <span id="navUserName">Rahul Mehta</span>
+          <span class="role-tag patient">Patient</span>
+        </span>
+        <button class="btn outline" onclick="doLogout()" style="padding:8px 14px">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Demo Role Bar -->
+  <div style="background:#eaf5f1;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="color:var(--brand-dark);font-weight:600">
+        👤 <strong>Patient Mode Active:</strong> Viewing personal consultations, status updates, and slips.
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="color:var(--muted);font-size:12px">Switch View:</span>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('doctor')">🩺 Doctor View</button>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('admin')">🛡️ Admin View</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="container section">
+    <!-- Patient Profile Header -->
+    <div class="patient-header">
+      <div class="profile-info">
+        <div class="profile-avatar" id="avatarInitial">R</div>
+        <div>
+          <div class="eyebrow">Patient Dashboard</div>
+          <h2 id="patientNameDisplay" style="font-size:24px">Rahul Mehta</h2>
+          <div style="color:var(--muted);font-size:14px;margin-top:4px" id="patientContactDisplay">rahul.patient@gmail.com • +91 98765 43210</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <a href="/#doctors" class="btn primary">+ Book New Consultation</a>
+      </div>
+    </div>
+
+    <!-- Alert / Notice message -->
+    <div id="noticeMsg" class="notice" style="display:none"></div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="applyFilter('')">All Visits (<span id="countAll">0</span>)</button>
+      <button class="filter-tab" onclick="applyFilter('Pending')">Pending (<span id="countPending">0</span>)</button>
+      <button class="filter-tab" onclick="applyFilter('Approved')">Confirmed (<span id="countApproved">0</span>)</button>
+      <button class="filter-tab" onclick="applyFilter('Completed')">Completed (<span id="countCompleted">0</span>)</button>
+      <button class="filter-tab" onclick="applyFilter('Cancelled')">Cancelled (<span id="countCancelled">0</span>)</button>
+    </div>
+
+    <!-- Appointments Table -->
+    <div class="panel table-wrap" style="padding:0">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Appointment ID</th>
+            <th>Specialist</th>
+            <th>Date & Time</th>
+            <th>Reason for Visit</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="apptList">
+          <tr>
+            <td colspan="6" style="text-align:center;padding:36px;color:var(--muted)">Loading your records...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    let allAppointments = [];
+    let currentFilter = '';
+    let currentUser = null;
+
+    function showNotice(text, isError = false) {
+      const el = document.getElementById('noticeMsg');
+      el.style.display = 'block';
+      el.className = 'notice ' + (isError ? 'error' : 'success');
+      el.textContent = text;
+      setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
+    async function checkAuth() {
+      currentUser = await getCurrentUser();
+
+      // If not logged in, auto-login as demo patient for zero-friction access
+      if (!currentUser) {
+        try {
+          const res = await apiFetch('/api/auth/demo', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'patient' })
+          });
+          const data = await res.json();
+          if (data && data.user) {
+            currentUser = data.user;
+            setSession(currentUser, data.token);
+          }
+        } catch (e) {}
+      }
+
+      if (currentUser) {
+        document.getElementById('navUserName').textContent = currentUser.name;
+        document.getElementById('patientNameDisplay').textContent = currentUser.name;
+        document.getElementById('patientContactDisplay').textContent = `${currentUser.email} ${currentUser.phone ? '• ' + currentUser.phone : ''}`;
+        document.getElementById('avatarInitial').textContent = (currentUser.name || 'P')[0].toUpperCase();
+      }
+
+      loadAppointments();
+    }
+
+    async function loadAppointments() {
+      try {
+        const res = await apiFetch('/api/my-appointments');
+        const data = await res.json();
+        allAppointments = data.appointments || [];
+        updateCounts();
+        renderTable();
+      } catch (err) {
+        document.getElementById('apptList').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Failed to load records.</td></tr>';
+      }
+    }
+
+    function updateCounts() {
+      document.getElementById('countAll').textContent = allAppointments.length;
+      document.getElementById('countPending').textContent = allAppointments.filter(a => a.status === 'Pending').length;
+      document.getElementById('countApproved').textContent = allAppointments.filter(a => a.status === 'Approved').length;
+      document.getElementById('countCompleted').textContent = allAppointments.filter(a => a.status === 'Completed').length;
+      document.getElementById('countCancelled').textContent = allAppointments.filter(a => a.status === 'Cancelled').length;
+    }
+
+    function applyFilter(status) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent.includes(status === '' ? 'All' : (status === 'Approved' ? 'Confirmed' : status)));
+      });
+      renderTable();
+    }
+
+    function renderTable() {
+      const filtered = currentFilter ? allAppointments.filter(a => a.status === currentFilter) : allAppointments;
+      const tbody = document.getElementById('apptList');
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No appointments found in this category.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => {
+        const canCancel = a.status === 'Pending' || a.status === 'Approved';
+        return `
+          <tr>
+            <td><strong>#${a.id}</strong></td>
+            <td>
+              <div><strong>${a.doctor_name}</strong></div>
+              <div style="font-size:12px;color:var(--brand)">${a.specialty}</div>
+            </td>
+            <td>
+              <div>${a.appointment_date}</div>
+              <div style="font-size:12px;color:var(--muted)">${a.appointment_time}</div>
+            </td>
+            <td style="max-width:240px">
+              <div>${a.reason}</div>
+              ${a.doctor_notes ? `<div class="prescription-box"><strong>Doctor's Advice:</strong> ${a.doctor_notes}</div>` : ''}
+            </td>
+            <td>
+              <span class="badge ${a.status.toLowerCase()}">${a.status}</span>
+            </td>
+            <td>
+              <div class="row-actions">
+                ${canCancel ? `<button class="mini cancel" onclick="cancelAppointment(${a.id})">Cancel Request</button>` : ''}
+                ${a.status === 'Approved' || a.status === 'Completed' ? `<button class="mini" style="background:#f1f5f9;color:var(--ink)" onclick="printSlip(${a.id})">Print Slip</button>` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function cancelAppointment(id) {
+      if (!confirm('Are you sure you want to cancel appointment #' + id + '?')) return;
+
+      try {
+        const res = await apiFetch('/api/my-appointments', {
+          method: 'PATCH',
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showNotice('Appointment #' + id + ' has been cancelled.');
+          loadAppointments();
+        } else {
+          showNotice(data.error || 'Cancellation failed.', true);
+        }
+      } catch (e) {
+        showNotice('Network error while cancelling.', true);
+      }
+    }
+
+    function printSlip(id) {
+      const appt = allAppointments.find(a => a.id === id);
+      if (!appt) return;
+
+      const printWin = window.open('', '', 'width=650,height=550');
+      printWin.document.write(`
+        <html>
+        <head>
+          <title>Appointment Slip #${appt.id} — CareFlow</title>
+          <style>
+            body { font-family: sans-serif; padding: 30px; color: #132a26; }
+            .card { border: 2px solid #16866f; border-radius: 12px; padding: 24px; }
+            h2 { color: #16866f; margin-top: 0; }
+            .item { margin-bottom: 12px; font-size: 15px; }
+            .label { font-weight: bold; width: 140px; display: inline-block; color: #555; }
+            .badge { background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 999px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>CareFlow Medical Center — Consultation Slip</h2>
+            <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
+            <div class="item"><span class="label">Slip ID:</span> #${appt.id}</div>
+            <div class="item"><span class="label">Patient Name:</span> ${appt.patient_name}</div>
+            <div class="item"><span class="label">Doctor:</span> ${appt.doctor_name} (${appt.specialty})</div>
+            <div class="item"><span class="label">Date:</span> ${appt.appointment_date}</div>
+            <div class="item"><span class="label">Time:</span> ${appt.appointment_time}</div>
+            <div class="item"><span class="label">Status:</span> <span class="badge">${appt.status}</span></div>
+            <div class="item"><span class="label">Reason:</span> ${appt.reason}</div>
+            ${appt.doctor_notes ? `<div class="item"><span class="label">Doctor Notes:</span> ${appt.doctor_notes}</div>` : ''}
+            <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
+            <div style="font-size:12px;color:#888;text-align:center">Please bring this slip along with a valid ID 15 minutes prior to your time slot.</div>
+          </div>
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareFlow — Access Portal</title>
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/client-auth.js"></script>
+  <style>
+    .auth-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--line);
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+    .auth-tab.active {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-page">
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <a href="/" class="brand">
+          <div class="mark">+</div>
+          <span>CareFlow</span>
+        </a>
+        <a href="/" style="font-size:13px;color:var(--brand2);text-decoration:none;font-weight:600">&larr; Back to Home</a>
+      </div>
+
+      <h1 style="font-size:24px;margin-bottom:6px">Access Portal</h1>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px">Sign in to manage appointments, clinical queues, and hospital records.</p>
+
+      <!-- 1-Click Quick Demo Login -->
+      <div class="demo-box">
+        <h4>⚡ Quick 1-Click Direct Access</h4>
+        <div class="demo-buttons">
+          <button class="demo-btn" type="button" onclick="quickDemo('patient')">
+            👤 Patient<br><small style="color:var(--muted)">Rahul M.</small>
+          </button>
+          <button class="demo-btn" type="button" onclick="quickDemo('doctor')">
+            🩺 Doctor<br><small style="color:var(--muted)">Dr. Sharma</small>
+          </button>
+          <button class="demo-btn" type="button" onclick="quickDemo('admin')">
+            🛡️ Admin<br><small style="color:var(--muted)">Clinic Admin</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <div id="tab-login" class="auth-tab active" onclick="switchTab('login')">Sign In</div>
+        <div id="tab-register" class="auth-tab" onclick="switchTab('register')">Register Patient</div>
+      </div>
+
+      <div id="msg" class="notice" style="display:none"></div>
+
+      <!-- Sign In Form -->
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="field" style="margin-bottom:14px">
+          <label>Email Address</label>
+          <input id="loginEmail" type="email" required placeholder="you@example.com" value="rahul.patient@gmail.com">
+        </div>
+
+        <div class="field" style="margin-bottom:18px">
+          <label>Password</label>
+          <input id="loginPassword" type="password" required placeholder="Enter password" value="patient123">
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">Passwords: <code>admin123</code>, <code>doctor123</code>, <code>patient123</code></div>
+        </div>
+
+        <button class="btn primary" id="loginBtn" type="submit" style="width:100%">Sign In to CareFlow</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" onsubmit="handleRegister(event)" style="display:none">
+        <div class="field" style="margin-bottom:12px">
+          <label>Full Name *</label>
+          <input id="regName" type="text" required placeholder="e.g. Priyesh Patel">
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>Email Address *</label>
+          <input id="regEmail" type="email" required placeholder="patient@example.com">
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>Contact Phone</label>
+          <input id="regPhone" type="tel" placeholder="+91 98765 43210">
+        </div>
+
+        <div class="field" style="margin-bottom:18px">
+          <label>Create Password *</label>
+          <input id="regPassword" type="password" required minlength="6" placeholder="At least 6 characters">
+        </div>
+
+        <button class="btn primary" id="regBtn" type="submit" style="width:100%">Create Patient Account</button>
+      </form>
+
+      <!-- Portal Shortcuts -->
+      <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line);text-align:center;font-size:13px;display:flex;justify-content:center;gap:12px">
+        <a href="/my-appointments.html" style="color:var(--brand);text-decoration:none">Patient Portal</a> •
+        <a href="/doctor.html" style="color:var(--brand);text-decoration:none">Doctor Portal</a> •
+        <a href="/admin.html" style="color:var(--brand);text-decoration:none">Admin Portal</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const msg = document.getElementById('msg');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+
+    function note(text, isError = false) {
+      msg.style.display = 'block';
+      msg.className = 'notice ' + (isError ? 'error' : 'success');
+      msg.textContent = text;
+    }
+
+    function switchTab(mode) {
+      msg.style.display = 'none';
+      if (mode === 'login') {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+      } else {
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+      }
+    }
+
+    function redirectNext(role) {
+      const nextParam = new URLSearchParams(window.location.search).get('next');
+      if (nextParam && nextParam.startsWith('/')) {
+        window.location.href = nextParam;
+        return;
+      }
+
+      if (role === 'doctor') {
+        window.location.href = '/doctor.html';
+      } else if (role === 'admin') {
+        window.location.href = '/admin.html';
+      } else {
+        window.location.href = '/my-appointments.html';
+      }
+    }
+
+    async function quickDemo(role) {
+      note('Signing in as ' + role + '...', false);
+      try {
+        const res = await apiFetch('/api/auth/demo', {
+          method: 'POST',
+          body: JSON.stringify({ role })
+        });
+        const data = await res.json();
+        if (res.ok && data.user) {
+          setSession(data.user, data.token);
+          note('Logged in successfully! Redirecting...', false);
+          setTimeout(() => redirectNext(data.user.role), 250);
+        } else {
+          note(data.error || 'Demo login failed.', true);
+        }
+      } catch (e) {
+        note('Server connection error. Make sure server is running on http://localhost:3000', true);
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+
+      try {
+        const res = await apiFetch('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.user) {
+          setSession(data.user, data.token);
+          note('Login successful! Redirecting...', false);
+          setTimeout(() => redirectNext(data.user.role), 250);
+        } else {
+          note(data.error || 'Invalid email or password.', true);
+          btn.disabled = false;
+          btn.textContent = 'Sign In to CareFlow';
+        }
+      } catch (err) {
+        note('Unable to connect to server. Check server status.', true);
+        btn.disabled = false;
+        btn.textContent = 'Sign In to CareFlow';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const password = document.getElementById('regPassword').value;
+
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const res = await apiFetch('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, phone, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.user) {
+          setSession(data.user, data.token);
+          note('Account created successfully! Redirecting...', false);
+          setTimeout(() => redirectNext('patient'), 300);
+        } else {
+          note(data.error || 'Registration failed.', true);
+          btn.disabled = false;
+          btn.textContent = 'Create Patient Account';
+        }
+      } catch (err) {
+        note('Unable to connect to server.', true);
+        btn.disabled = false;
+        btn.textContent = 'Create Patient Account';
+      }
+    }
+
+    // If user already logged in and no specific next param, show notice with shortcut
+    const existing = getStoredUser();
+    if (existing) {
+      note('Currently logged in as ' + existing.name + ' (' + existing.role + '). Click portals below to navigate.', false);
+    }
+  </script>
+</body>
+</html>

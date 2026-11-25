@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Doctor Workspace — CareFlow</title>
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/client-auth.js"></script>
+  <style>
+    .notes-input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <a href="/" class="brand">
+        <div class="mark">+</div>
+        <span>CareFlow</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/my-appointments.html">Patient Portal</a>
+        <a href="/doctor.html" style="color:var(--brand)">Doctor Workspace</a>
+        <a href="/admin.html">Admin Portal</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="user-pill">
+          <span id="docNameHeader">Dr. Ananya Sharma</span>
+          <span class="role-tag doctor" id="roleTag">Doctor</span>
+        </span>
+        <button class="btn outline" onclick="doLogout()" style="padding:8px 14px">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Demo Role Bar -->
+  <div style="background:#eaf5f1;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="color:var(--brand-dark);font-weight:600">
+        🩺 <strong>Doctor Mode Active:</strong> Review appointments, update statuses, and save consultation notes.
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="color:var(--muted);font-size:12px">Switch View:</span>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('patient')">👤 Patient View</button>
+        <button class="mini" style="background:white;border:1px solid #cce3db;cursor:pointer" onclick="quickSwitchRole('admin')">🛡️ Admin View</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="container section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Medical Staff Portal</div>
+        <h2>Doctor Consultation Queue</h2>
+        <p id="docSubTitle">Review patient appointments, approve visits, and record clinical notes.</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn outline" onclick="loadDoctorAppointments()">↻ Refresh Queue</button>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="stats" style="margin-top:0">
+      <div class="stat">
+        <b id="docTotalAppts">0</b>
+        <span>Assigned Patients</span>
+      </div>
+      <div class="stat">
+        <b id="docPendingAppts" style="color:var(--warning)">0</b>
+        <span>Pending Approval</span>
+      </div>
+      <div class="stat">
+        <b id="docApprovedAppts" style="color:var(--success)">0</b>
+        <span>Confirmed Visits</span>
+      </div>
+      <div class="stat">
+        <b id="docCompletedAppts" style="color:var(--info)">0</b>
+        <span>Completed</span>
+      </div>
+    </div>
+
+    <div id="noticeMsg" class="notice" style="display:none"></div>
+
+    <!-- Filter bar -->
+    <div class="panel" style="margin-bottom:16px;padding:16px">
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="Search patient name, email, or symptoms..." oninput="filterList()">
+        <select id="statusFilter" onchange="filterList()">
+          <option value="">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <button class="btn outline" onclick="document.getElementById('searchInput').value='';document.getElementById('statusFilter').value='';filterList()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Appointments table -->
+    <div class="panel table-wrap" style="padding:0">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Patient Details</th>
+            <th>Date & Time</th>
+            <th>Reason / Symptoms</th>
+            <th>Status</th>
+            <th>Clinical Notes / Prescription</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="docQueueList">
+          <tr>
+            <td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">Loading doctor queue...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    let appts = [];
+    let currentUser = null;
+
+    function showNotice(text, isError = false) {
+      const el = document.getElementById('noticeMsg');
+      el.style.display = 'block';
+      el.className = 'notice ' + (isError ? 'error' : 'success');
+      el.textContent = text;
+      setTimeout(() => { el.style.display = 'none'; }, 4000);
+    }
+
+    async function checkAuth() {
+      currentUser = await getCurrentUser();
+
+      // If not logged in, auto-login as doctor for frictionless test
+      if (!currentUser || currentUser.role !== 'doctor') {
+        try {
+          const res = await apiFetch('/api/auth/demo', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'doctor' })
+          });
+          const data = await res.json();
+          if (data && data.user) {
+            currentUser = data.user;
+            setSession(currentUser, data.token);
+          }
+        } catch (e) {}
+      }
+
+      if (currentUser) {
+        document.getElementById('docNameHeader').textContent = currentUser.name;
+        document.getElementById('roleTag').textContent = currentUser.role.toUpperCase();
+        document.getElementById('roleTag').className = 'role-tag ' + currentUser.role;
+      }
+
+      loadDoctorAppointments();
+    }
+
+    async function loadDoctorAppointments() {
+      try {
+        const res = await apiFetch('/api/doctor-appointments');
+        const data = await res.json();
+        appts = data.appointments || [];
+
+        // Update stats
+        document.getElementById('docTotalAppts').textContent = appts.length;
+        document.getElementById('docPendingAppts').textContent = appts.filter(a => a.status === 'Pending').length;
+        document.getElementById('docApprovedAppts').textContent = appts.filter(a => a.status === 'Approved').length;
+        document.getElementById('docCompletedAppts').textContent = appts.filter(a => a.status === 'Completed').length;
+
+        filterList();
+      } catch (err) {
+        document.getElementById('docQueueList').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Error loading appointment queue.</td></tr>';
+      }
+    }
+
+    function filterList() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+
+      const filtered = appts.filter(a => {
+        const matchesQ = !q || (a.patient_name.toLowerCase().includes(q) || a.patient_email.toLowerCase().includes(q) || a.reason.toLowerCase().includes(q));
+        const matchesStatus = !status || a.status === status;
+        return matchesQ && matchesStatus;
+      });
+
+      const tbody = document.getElementById('docQueueList');
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No appointments match current filters.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => `
+        <tr>
+          <td>
+            <strong>${a.patient_name}</strong>
+            <div style="font-size:12px;color:var(--muted)">${a.patient_email}</div>
+            ${a.patient_phone ? `<div style="font-size:12px;color:var(--brand)">${a.patient_phone}</div>` : ''}
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">Doctor: ${a.doctor_name}</div>
+          </td>
+          <td>
+            <strong>${a.appointment_date}</strong>
+            <div style="font-size:12px;color:var(--muted)">${a.appointment_time}</div>
+          </td>
+          <td style="max-width:200px">
+            <div>${a.reason}</div>
+          </td>
+          <td>
+            <span class="badge ${a.status.toLowerCase()}">${a.status}</span>
+          </td>
+          <td style="min-width:220px">
+            <textarea id="notes-${a.id}" class="notes-input" placeholder="Add diagnosis, RX, or consultation notes...">${a.doctor_notes || ''}</textarea>
+            <button class="mini outline" style="margin-top:4px" onclick="saveNotes(${a.id})">Save Notes</button>
+          </td>
+          <td>
+            <div class="row-actions">
+              ${a.status === 'Pending' ? `<button class="mini approve" onclick="updateAppt(${a.id}, 'Approved')">Approve</button>` : ''}
+              ${a.status === 'Approved' ? `<button class="mini complete" onclick="updateAppt(${a.id}, 'Completed')">Mark Completed</button>` : ''}
+              ${a.status === 'Pending' ? `<button class="mini reject" onclick="updateAppt(${a.id}, 'Rejected')">Reject</button>` : ''}
+              ${a.status !== 'Cancelled' && a.status !== 'Completed' ? `<button class="mini cancel" onclick="updateAppt(${a.id}, 'Cancelled')">Cancel</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function updateAppt(id, nextStatus) {
+      const notesEl = document.getElementById('notes-' + id);
+      const notes = notesEl ? notesEl.value.trim() : null;
+
+      try {
+        const res = await apiFetch('/api/appointments', {
+          method: 'PATCH',
+          body: JSON.stringify({ id, status: nextStatus, doctor_notes: notes })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showNotice(`Appointment #${id} updated to ${nextStatus}.`);
+          loadDoctorAppointments();
+        } else {
+          showNotice(data.error || 'Failed to update.', true);
+        }
+      } catch (e) {
+        showNotice('Network error.', true);
+      }
+    }
+
+    async function saveNotes(id) {
+      const notes = document.getElementById('notes-' + id).value.trim();
+      const item = appts.find(a => a.id === id);
+      const currentStatus = item ? item.status : 'Pending';
+
+      try {
+        const res = await apiFetch('/api/appointments', {
+          method: 'PATCH',
+          body: JSON.stringify({ id, status: currentStatus, doctor_notes: notes })
+        });
+        if (res.ok) {
+          showNotice('Doctor notes saved for Appointment #' + id);
+        } else {
+          showNotice('Failed to save notes.', true);
+        }
+      } catch (e) {
+        showNotice('Network error.', true);
+      }
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>
